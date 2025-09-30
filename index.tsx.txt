@@ -1,0 +1,530 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+*/
+import { GoogleGenAI, Modality } from "@google/genai";
+
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+const MAX_TRIALS = 10;
+let trialCount = 0;
+
+// --- Loading Messages ---
+let loaderInterval: number | undefined;
+const loadingMessages = [
+    "AI đang phác thảo ý tưởng...",
+    "Đang chọn màu sắc hoàn hảo...",
+    "Thêm các chi tiết cuối cùng...",
+    "Sắp xong rồi, chờ một chút nhé!",
+    "Đang tạo nên điều kỳ diệu...",
+    "Tinh chỉnh ánh sáng chuyên nghiệp..."
+];
+
+// --- Paywall Elements ---
+const paywallOverlay = document.getElementById('paywall-overlay') as HTMLDivElement;
+const purchaseBtn = document.getElementById('purchase-btn') as HTMLButtonElement;
+
+
+// --- DOM Elements ---
+const dropZone = document.getElementById('drop-zone') as HTMLDivElement;
+const fileInput = document.getElementById('file-input') as HTMLInputElement;
+const originalImage = document.getElementById('original-image') as HTMLImageElement;
+const uploadPrompt = document.getElementById('upload-prompt') as HTMLDivElement;
+
+const resultImage = document.getElementById('result-image') as HTMLImageElement;
+const resultContainer = document.getElementById('result-container') as HTMLDivElement;
+const downloadBtn = document.getElementById('download-btn') as HTMLAnchorElement;
+const loader = document.getElementById('loader') as HTMLDivElement;
+const loaderMessage = document.getElementById('loader-message') as HTMLParagraphElement;
+const generateBtn = document.getElementById('generate-btn') as HTMLButtonElement;
+const validationMessage = document.getElementById('validation-message') as HTMLParagraphElement;
+const trialCounter = document.getElementById('trial-counter') as HTMLParagraphElement;
+
+
+// --- Controls ---
+const backgroundRadios = document.querySelectorAll('input[name="background"]') as NodeListOf<HTMLInputElement>;
+const genderRadios = document.querySelectorAll('input[name="gender"]') as NodeListOf<HTMLInputElement>;
+
+const outfitInput = document.getElementById('outfit-input') as HTMLInputElement;
+const femaleOutfitsContainer = document.getElementById('female-outfits') as HTMLDivElement;
+const maleOutfitsContainer = document.getElementById('male-outfits') as HTMLDivElement;
+const outfitPresetBtns = document.querySelectorAll('.outfit-btn') as NodeListOf<HTMLButtonElement>;
+
+const accessoriesInput = document.getElementById('accessories-input') as HTMLTextAreaElement;
+const makeupFieldset = document.getElementById('makeup-fieldset') as HTMLFieldSetElement;
+const makeupRadios = document.querySelectorAll('input[name="makeup"]') as NodeListOf<HTMLInputElement>;
+
+const femaleHairContainer = document.getElementById('female-hair') as HTMLDivElement;
+const maleHairContainer = document.getElementById('male-hair') as HTMLDivElement;
+const hairRadios = document.querySelectorAll('input[name="hair"]') as NodeListOf<HTMLInputElement>;
+
+const keepHairCheckbox = document.getElementById('keep-hair-checkbox') as HTMLInputElement;
+const smoothSkinCheckbox = document.getElementById('smooth-skin-checkbox') as HTMLInputElement;
+const smileCheckbox = document.getElementById('smile-checkbox') as HTMLInputElement;
+
+const similaritySlider = document.getElementById('similarity-slider') as HTMLInputElement;
+const similarityValueLabel = document.getElementById('similarity-value-label') as HTMLSpanElement;
+
+
+// --- State Management ---
+const state = {
+    sourceImage: {
+        base64: '',
+        mimeType: '',
+    },
+    background: 'trắng',
+    gender: '' as 'male' | 'female' | '',
+    outfit: 'Sơ mi trắng',
+    accessories: '',
+    makeup: 'không trang điểm',
+    hair: 'kiểu tóc tự nhiên, gọn gàng',
+    keepHair: false,
+    smoothSkin: true,
+    addSmile: false,
+    similarityLevel: 4,
+    isGenerating: false,
+};
+
+
+// --- Helper Functions ---
+function fileToBase64(file: File): Promise<{base64: string, mimeType: string}> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const result = reader.result as string;
+            const parts = result.split(',');
+            if (parts.length !== 2) {
+                return reject(new Error("Invalid file format"));
+            }
+            const mimeType = parts[0].split(';')[0].split(':')[1];
+            resolve({ base64: parts[1], mimeType });
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+function showPaywall() {
+    paywallOverlay.classList.remove('hidden');
+}
+
+// --- UI Update Functions ---
+function updateTrialUI() {
+    const remaining = MAX_TRIALS - trialCount;
+    if (remaining > 0) {
+        trialCounter.textContent = `Bạn còn ${remaining} lượt dùng thử miễn phí.`;
+    } else {
+        trialCounter.textContent = 'Bạn đã hết lượt dùng thử miễn phí.';
+    }
+}
+
+
+function validateAndToggleButton() {
+    const isImageUploaded = !!state.sourceImage.base64;
+    const isGenderSelected = !!state.gender;
+    const hasTrialsLeft = trialCount < MAX_TRIALS;
+
+    if (isImageUploaded && isGenderSelected && hasTrialsLeft) {
+        generateBtn.disabled = false;
+        validationMessage.classList.add('hidden');
+    } else {
+        generateBtn.disabled = true;
+        validationMessage.classList.remove('hidden');
+        if (!hasTrialsLeft) {
+            validationMessage.textContent = 'Vui lòng mua để tiếp tục tạo ảnh.';
+        }
+        else if (!isImageUploaded && !isGenderSelected) {
+            validationMessage.textContent = 'Vui lòng tải ảnh và chọn giới tính.';
+        } else if (!isImageUploaded) {
+            validationMessage.textContent = 'Vui lòng tải ảnh lên.';
+        } else {
+            validationMessage.textContent = 'Vui lòng chọn giới tính.';
+        }
+    }
+}
+
+function setLoading(isLoading: boolean) {
+    state.isGenerating = isLoading;
+    loader.classList.toggle('hidden', !isLoading);
+    
+    if (isLoading) {
+        generateBtn.disabled = true;
+        let messageIndex = 0;
+        loaderMessage.textContent = loadingMessages[messageIndex];
+        loaderInterval = window.setInterval(() => {
+            messageIndex = (messageIndex + 1) % loadingMessages.length;
+            loaderMessage.textContent = loadingMessages[messageIndex];
+        }, 3000);
+    } else {
+        validateAndToggleButton(); // Re-check validation after loading
+        if (loaderInterval) {
+            clearInterval(loaderInterval);
+            loaderInterval = undefined;
+        }
+    }
+
+    generateBtn.textContent = isLoading ? 'Đang xử lý...' : 'Thực hiện';
+    if(isLoading) {
+        downloadBtn.classList.add('disabled');
+        downloadBtn.setAttribute('aria-disabled', 'true');
+    }
+}
+
+function updateOutfitInputFromPresets() {
+    const activeButtons = Array.from(outfitPresetBtns).filter(btn => btn.classList.contains('active') && !btn.parentElement?.classList.contains('hidden'));
+    
+    const keepOriginalBtn = activeButtons.find(btn => btn.dataset.value === 'keep');
+
+    if (keepOriginalBtn) {
+        outfitInput.value = 'giữ nguyên trang phục gốc';
+    } else {
+        const descriptions = activeButtons.map(btn => btn.textContent?.trim() || '');
+        outfitInput.value = descriptions.join(', ');
+    }
+    state.outfit = outfitInput.value;
+}
+
+const similarityLabels: { [key: number]: string } = {
+    1: 'Rất sáng tạo',
+    2: 'Sáng tạo',
+    3: 'Cân bằng',
+    4: 'Giống',
+    5: 'Giống nhất'
+};
+
+function updateSimilarityLabel() {
+    similarityValueLabel.textContent = similarityLabels[state.similarityLevel];
+}
+
+
+// --- Core AI Function ---
+async function generateImage() {
+    if (generateBtn.disabled || state.isGenerating) {
+        return;
+    }
+
+    setLoading(true);
+
+    trialCount++;
+    localStorage.setItem('trialGenerations', trialCount.toString());
+    updateTrialUI();
+
+    resultImage.src = 'https://placehold.co/600/f0f8f8/FFF?text='; // Clear previous result
+
+    try {
+        let fidelityInstruction = '';
+        switch (state.similarityLevel) {
+            case 5:
+            case 4:
+                fidelityInstruction = 'ƯU TIÊN TUYỆT ĐỐI: Giữ nguyên 100% các đường nét và đặc điểm nhận dạng của khuôn mặt gốc (mắt, mũi, miệng, hình dáng cằm, cấu trúc xương). Chỉ thay đổi những yếu tố được yêu cầu như quần áo, kiểu tóc, nền. ';
+                break;
+            case 3:
+                fidelityInstruction = 'Cố gắng giữ lại các đường nét chính của khuôn mặt gốc. ';
+                break;
+            case 2:
+            case 1:
+                fidelityInstruction = 'Cho phép AI tự do sáng tạo để có kết quả đẹp nhất. ';
+                break;
+        }
+
+        let prompt = `${fidelityInstruction}Chỉnh sửa ảnh chân dung này thành ảnh thẻ chuyên nghiệp, phù hợp để làm hồ sơ, hộ chiếu. `;
+        prompt += `Nền là màu ${state.background}. `;
+        prompt += `Trang phục là ${state.outfit}. `;
+        
+        if (state.accessories.trim()) {
+            prompt += `Thêm phụ kiện: ${state.accessories}. `;
+        }
+
+        if (state.gender === 'female') {
+            prompt += `Trang điểm: ${state.makeup}. `;
+        }
+        
+        if (state.keepHair) {
+            prompt += 'Giữ nguyên kiểu tóc gốc. ';
+        } else {
+            prompt += `Kiểu tóc là ${state.hair}. `;
+        }
+        
+        if (state.smoothSkin) {
+            prompt += 'Làm cho da mặt mịn màng, xóa các khuyết điểm nhỏ nhưng vẫn giữ được nét tự nhiên. ';
+        }
+        
+        if (state.addSmile) {
+            prompt += 'Thêm một nụ cười mỉm nhẹ nhàng, chuyên nghiệp, miệng không hở răng. ';
+        }
+        
+        prompt += 'Chất lượng ảnh phải sắc nét, ánh sáng tốt. Chỉ trả về hình ảnh đã được chỉnh sửa.';
+        
+        const imagePart = {
+          inlineData: {
+            data: state.sourceImage.base64,
+            mimeType: state.sourceImage.mimeType,
+          },
+        };
+        const textPart = { text: prompt };
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image-preview',
+            contents: { parts: [imagePart, textPart] },
+            config: {
+                responseModalities: [Modality.IMAGE, Modality.TEXT],
+            },
+        });
+        
+        if (!response.candidates || response.candidates.length === 0) {
+            let errorMessage = "AI không thể xử lý yêu cầu này.";
+            if (response.promptFeedback && response.promptFeedback.blockReason) {
+                errorMessage = `Yêu cầu bị chặn vì lý do an toàn (${response.promptFeedback.blockReason}). Vui lòng thử với một ảnh hoặc tùy chọn khác.`;
+            }
+            throw new Error(errorMessage);
+        }
+        
+        const content = response.candidates[0].content;
+        if (!content || !content.parts) {
+             throw new Error("Phản hồi từ AI có cấu trúc không hợp lệ.");
+        }
+
+        let foundImage = false;
+        for (const part of content.parts) {
+            if (part.inlineData) {
+                const base64ImageBytes = part.inlineData.data;
+                const mimeType = part.inlineData.mimeType;
+                const imageUrl = `data:${mimeType};base64,${base64ImageBytes}`;
+                resultImage.src = imageUrl;
+                downloadBtn.href = imageUrl;
+                downloadBtn.classList.remove('disabled');
+                downloadBtn.removeAttribute('aria-disabled');
+                foundImage = true;
+                break;
+            }
+        }
+
+        if (!foundImage) {
+            const textResponse = content.parts.map(p => p.text).join('\n').trim();
+            if (textResponse) {
+                throw new Error(`AI đã phản hồi bằng văn bản thay vì hình ảnh: "${textResponse}"`);
+            }
+            throw new Error("Phản hồi từ AI không chứa hình ảnh hợp lệ.");
+        }
+
+    } catch (error) {
+        console.error("Lỗi khi tạo ảnh:", error);
+        const rawMessage = error instanceof Error ? error.message : "Đã có lỗi không xác định.";
+        
+        let userMessage = "Đã có lỗi xảy ra.\nVui lòng thử lại.";
+
+        if (rawMessage.toLowerCase().includes('quota')) {
+            userMessage = "Đã đạt giới hạn yêu cầu hàng ngày.\nVui lòng thử lại vào ngày mai.";
+        } else if (rawMessage.includes('an toàn')) {
+            // Keep the safety message as it is descriptive
+            userMessage = rawMessage;
+        }
+
+        resultImage.src = `https://placehold.co/600x800/e0e0e0/999?text=${encodeURIComponent(userMessage)}`;
+
+    } finally {
+        setLoading(false);
+        if (trialCount >= MAX_TRIALS) {
+            showPaywall();
+        }
+    }
+}
+
+// --- Event Handlers ---
+function handleFileSelect(file: File | null) {
+    if (!file || !file.type.startsWith('image/')) {
+        alert('Vui lòng chọn một tệp ảnh.');
+        return;
+    }
+
+    fileToBase64(file).then(({ base64, mimeType }) => {
+        state.sourceImage.base64 = base64;
+        state.sourceImage.mimeType = mimeType;
+        
+        originalImage.src = `data:${mimeType};base64,${base64}`;
+        originalImage.classList.remove('hidden');
+        uploadPrompt.classList.add('hidden');
+
+        validateAndToggleButton();
+        
+    }).catch(error => {
+        console.error("Lỗi xử lý tệp:", error);
+        alert('Không thể xử lý tệp ảnh này.');
+    });
+}
+
+function handleGenderChange(newGender: 'male' | 'female') {
+    state.gender = newGender;
+
+    // Toggle visibility
+    const isFemale = newGender === 'female';
+    femaleOutfitsContainer.classList.toggle('hidden', !isFemale);
+    maleOutfitsContainer.classList.toggle('hidden', isFemale);
+    femaleHairContainer.classList.toggle('hidden', !isFemale);
+    maleHairContainer.classList.toggle('hidden', isFemale);
+    makeupFieldset.classList.toggle('hidden', !isFemale);
+
+
+    // Reset selections to defaults
+    outfitPresetBtns.forEach(btn => btn.classList.remove('active'));
+    hairRadios.forEach(radio => radio.checked = false);
+
+    if (isFemale) {
+        // Set female defaults
+        const defaultOutfit = femaleOutfitsContainer.querySelector('.outfit-btn');
+        defaultOutfit?.classList.add('active');
+        const defaultHair = femaleHairContainer.querySelector('input[type="radio"]');
+        if (defaultHair) (defaultHair as HTMLInputElement).checked = true;
+        state.hair = (defaultHair as HTMLInputElement)?.value || 'kiểu tóc tự nhiên, gọn gàng';
+    } else {
+        // Set male defaults
+        const defaultOutfit = maleOutfitsContainer.querySelector('.outfit-btn');
+        defaultOutfit?.classList.add('active');
+        const defaultHair = maleHairContainer.querySelector('input[type="radio"]');
+        if (defaultHair) (defaultHair as HTMLInputElement).checked = true;
+        state.hair = (defaultHair as HTMLInputElement)?.value || 'kiểu tóc nam tự nhiên, gọn gàng';
+    }
+    
+    updateOutfitInputFromPresets();
+    validateAndToggleButton();
+}
+
+// --- Accordion UI ---
+function setupAccordion() {
+    const fieldsets = document.querySelectorAll('.controls-panel fieldset');
+    fieldsets.forEach(fieldset => {
+        const legend = fieldset.querySelector('legend');
+        if (legend) {
+            legend.addEventListener('click', () => {
+                fieldset.classList.toggle('collapsed');
+            });
+            legend.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    fieldset.classList.toggle('collapsed');
+                }
+            });
+        }
+    });
+}
+
+// This function will be replaced with a real payment system
+function setupPurchaseButton() {
+    purchaseBtn.addEventListener('click', () => {
+        // In a real app, this would trigger a payment flow.
+        alert('Chức năng thanh toán đang được phát triển!');
+    });
+}
+
+
+// --- Event Listeners Setup ---
+function setupEventListeners() {
+    // File Drop Zone
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        fileInput.click();
+      }
+    });
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragging');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragging');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragging');
+        if (e.dataTransfer?.files.length) {
+            handleFileSelect(e.dataTransfer.files[0]);
+        }
+    });
+    
+    fileInput.addEventListener('change', () => handleFileSelect(fileInput.files ? fileInput.files[0] : null));
+
+    // Controls listeners - they just update state
+    backgroundRadios.forEach(radio => radio.addEventListener('change', () => state.background = radio.value));
+    genderRadios.forEach(radio => radio.addEventListener('change', () => handleGenderChange(radio.value as 'male' | 'female')));
+    makeupRadios.forEach(radio => radio.addEventListener('change', () => state.makeup = radio.value));
+    hairRadios.forEach(radio => radio.addEventListener('change', () => state.hair = radio.value));
+    
+    outfitInput.value = state.outfit;
+    outfitInput.addEventListener('input', () => {
+        state.outfit = outfitInput.value
+        // Deselect all buttons if user types manually
+        outfitPresetBtns.forEach(btn => btn.classList.remove('active'));
+    });
+    accessoriesInput.addEventListener('input', () => state.accessories = accessoriesInput.value);
+
+    // Outfit preset buttons
+    outfitPresetBtns.forEach(button => {
+        button.addEventListener('click', () => {
+            const isKeepButton = button.dataset.value === 'keep';
+            
+            if (isKeepButton) {
+                 // Toggle 'keep' button. If it becomes active, deactivate all others in the same container.
+                button.classList.toggle('active');
+                if (button.classList.contains('active')) {
+                    const parentContainer = button.closest('.outfit-presets-grid');
+                    parentContainer?.querySelectorAll('.outfit-btn').forEach(btn => {
+                        if (btn !== button) {
+                            btn.classList.remove('active');
+                        }
+                    });
+                }
+            } else {
+                 // If any other button is clicked, deactivate 'keep' button in the same container
+                 const parentContainer = button.closest('.outfit-presets-grid');
+                 const keepButton = parentContainer?.querySelector('.outfit-btn[data-value="keep"]');
+                 keepButton?.classList.remove('active');
+                 button.classList.toggle('active');
+            }
+            updateOutfitInputFromPresets();
+        });
+    });
+
+    keepHairCheckbox.addEventListener('change', () => state.keepHair = keepHairCheckbox.checked);
+    smoothSkinCheckbox.addEventListener('change', () => state.smoothSkin = smoothSkinCheckbox.checked);
+    smileCheckbox.addEventListener('change', () => state.addSmile = smileCheckbox.checked);
+    
+    similaritySlider.addEventListener('input', () => {
+        state.similarityLevel = parseInt(similaritySlider.value, 10);
+        updateSimilarityLabel();
+    });
+
+    // Generate Button
+    generateBtn.addEventListener('click', generateImage);
+}
+
+
+// --- App Initialization ---
+document.addEventListener('DOMContentLoaded', () => {
+    // Load trial count from local storage
+    trialCount = parseInt(localStorage.getItem('trialGenerations') || '0', 10);
+    
+    if (trialCount >= MAX_TRIALS) {
+        showPaywall();
+    }
+    
+    updateTrialUI();
+
+    setupEventListeners();
+    setupPurchaseButton();
+    setupAccordion();
+    
+    // Set initial UI from state
+    updateSimilarityLabel();
+
+    // Initially hide all gender-specific sections until a choice is made
+    femaleOutfitsContainer.classList.add('hidden');
+    maleOutfitsContainer.classList.add('hidden');
+    femaleHairContainer.classList.add('hidden');
+    maleHairContainer.classList.add('hidden');
+    makeupFieldset.classList.add('hidden');
+
+    validateAndToggleButton();
+});

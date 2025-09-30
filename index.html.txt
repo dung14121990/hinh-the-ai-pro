@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HÌNH THẺ AI STUDIO HOÀNG DŨNG SIÊU PRO</title>
+    <link rel="stylesheet" href="index.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;700&display=swap" rel="stylesheet">
+<script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.21.0"
+  }
+}
+</script>
+</head>
+<body>
+    <div id="paywall-overlay" class="hidden">
+        <div id="paywall-modal">
+            <h2>Hết lượt dùng thử!</h2>
+            <p class="tagline">Cảm ơn bạn đã trải nghiệm. Mở khóa quyền truy cập trọn đời để tiếp tục tạo ảnh không giới hạn.</p>
+            <ul class="features-list">
+                <li><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>Nền chuyên nghiệp (Trắng, Xanh, Xám)</li>
+                <li><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>Thay đổi trang phục công sở</li>
+                <li><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>Tùy chỉnh kiểu tóc & làm mịn da</li>
+                <li><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>Tạo ảnh không giới hạn</li>
+            </ul>
+            <button id="purchase-btn">Mở khóa quyền truy cập trọn đời</button>
+        </div>
+    </div>
+    <header>
+        <h1>HÌNH THẺ AI STUDIO HOÀNG DŨNG SIÊU PRO</h1>
+    </header>
+    <main class="main-container">
+        <aside class="controls-panel">
+            <fieldset>
+                <legend>Thay nền<svg class="accordion-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></legend>
+                <div class="radio-group">
+                    <label><input type="radio" name="background" value="trắng" checked> Trắng</label>
+                    <label><input type="radio" name="background" value="xanh nhạt"> Xanh nhạt</label>
+                    <label><input type="radio" name="background" value="xám"> Xám</label>
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend>Giới tính<svg class="accordion-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></legend>
+                <div class="radio-group radio-group-horizontal">
+                    <label><input type="radio" name="gender" value="female"> Nữ</label>
+                    <label><input type="radio" name="gender" value="male"> Nam</label>
+                </div>
+            </fieldset>
+
+            <fieldset class="collapsed">
+                <legend>Thay áo<svg class="accordion-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></legend>
+                 <input type="text" id="outfit-input" placeholder="ví dụ: áo vest đen...">
+            </fieldset>
+            
+            <fieldset class="collapsed">
+                <legend class="preset-legend">Hoặc chọn trang phục có sẵn (có thể chọn nhiều)<svg class="accordion-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></legend>
+                <div id="female-outfits" class="outfit-presets-grid">
+                    <button class="outfit-btn active" data-gender="female">Sơ mi trắng</button>
+                    <button class="outfit-btn" data-gender="female">Sơ mi xanh</button>
+                    <button class="outfit-btn" data-gender="female">Sơ mi đen</button>
+                    <button class="outfit-btn" data-gender="female">Áo polo</button>
+                    <button class="outfit-btn" data-gender="female">Áo Blouse</button>
+                    <button class="outfit-btn" data-gender="female">Áo cổ nơ thanh lịch</button>
+                    <button class="outfit-btn" data-gender="female">Vest công sở</button>
+                    <button class="outfit-btn" data-gender="female">Vest đen cổ điển</button>
+                    <button class="outfit-btn" data-gender="female">Áo dài trắng</button>
+                    <button class="outfit-btn" data-gender="female">Vest nữ</button>
+                    <button class="outfit-btn" data-gender="female">Áo vest nữ dáng ôm</button>
+                    <button class="outfit-btn" data-value="keep">Giữ nguyên</button>
+                </div>
+                 <div id="male-outfits" class="outfit-presets-grid hidden">
+                    <button class="outfit-btn active" data-gender="male">Sơ mi trắng</button>
+                    <button class="outfit-btn" data-gender="male">Sơ mi xanh</button>
+                    <button class="outfit-btn" data-gender="male">Sơ mi đen</button>
+                    <button class="outfit-btn" data-gender="male">Áo polo</button>
+                    <button class="outfit-btn" data-gender="male">Vest công sở</button>
+                    <button class="outfit-btn" data-gender="male">Vest đen cổ điển</button>
+                    <button class="outfit-btn" data-gender="male">Vest xanh navy</button>
+                    <button class="outfit-btn" data-gender="male">Vest xám khói</button>
+                    <button class="outfit-btn" data-gender="male">Vest & Cà vạt</button>
+                    <button class="outfit-btn" data-gender="male">Vest ghi 1</button>
+                    <button class="outfit-btn" data-gender="male">Vest ghi 2</button>
+                    <button class="outfit-btn" data-gender="male">Áo khoác vest</button>
+                    <button class="outfit-btn" data-gender="male">Áo gile</button>
+                    <button class="outfit-btn" data-gender="male">Áo len cổ lọ</button>
+                    <button class="outfit-btn" data-value="keep">Giữ nguyên</button>
+                </div>
+            </fieldset>
+
+            <fieldset class="collapsed">
+                <legend>Thêm phụ kiện : kính, trang sức...<svg class="accordion-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></legend>
+                <textarea id="accessories-input" rows="3" placeholder="ví dụ: đeo kính gọng đen..."></textarea>
+            </fieldset>
+
+            <fieldset id="makeup-fieldset" class="collapsed">
+                <legend>Trang điểm<svg class="accordion-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></legend>
+                <div class="radio-group">
+                    <label><input type="radio" name="makeup" value="không trang điểm" checked> Không màu</label>
+                    <label><input type="radio" name="makeup" value="son môi màu đỏ"> Đỏ</label>
+                    <label><input type="radio" name="makeup" value="son môi màu hồng"> Hồng</label>
+                    <label><input type="radio" name="makeup" value="son môi màu nude"> Nude</label>
+                </div>
+            </fieldset>
+
+            <fieldset class="collapsed">
+                 <legend>Kiểu tóc<svg class="accordion-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></legend>
+                 <div id="female-hair">
+                    <div class="radio-group">
+                        <label><input type="radio" name="hair" value="kiểu tóc tự nhiên, gọn gàng" checked> Ngẫu nhiên</label>
+                        <label><input type="radio" name="hair" value="tóc có mái che trán"> Tóc mái</label>
+                        <label><input type="radio" name="hair" value="tóc vuốt ngược ra sau"> Vuốt ngược</label>
+                    </div>
+                 </div>
+                 <div id="male-hair" class="hidden">
+                    <div class="radio-group">
+                        <label><input type="radio" name="hair" value="kiểu tóc nam tự nhiên, gọn gàng" checked> Ngẫu nhiên</label>
+                        <label><input type="radio" name="hair" value="kiểu tóc nam ngắn, chải chuốt"> Tóc ngắn</label>
+                        <label><input type="radio" name="hair" value="tóc nam vuốt ngược ra sau"> Vuốt ngược</label>
+                    </div>
+                 </div>
+            </fieldset>
+            
+            <fieldset class="checkbox-group collapsed">
+                <legend>Tùy chọn thêm<svg class="accordion-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></legend>
+                <label><input type="checkbox" id="keep-hair-checkbox"> Giữ nguyên kiểu tóc gốc</label>
+                <label><input type="checkbox" id="smooth-skin-checkbox" checked> Làm mịn da</label>
+                <label><input type="checkbox" id="smile-checkbox"> Cười mỉm</label>
+            </fieldset>
+
+            <fieldset class="collapsed">
+                <legend>Mức độ giống gốc: <span id="similarity-value-label">Giống</span><svg class="accordion-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></legend>
+                <div class="slider-container">
+                    <input type="range" id="similarity-slider" min="1" max="5" value="4" step="1">
+                    <div class="slider-labels">
+                        <span>Sáng tạo</span>
+                        <span>Giống nhất</span>
+                    </div>
+                </div>
+            </fieldset>
+
+            <div class="action-bar">
+                <p id="trial-counter" class="trial-counter"></p>
+                <button id="generate-btn" class="generate-btn" disabled>Thực hiện</button>
+                <p id="validation-message" class="validation-message"></p>
+            </div>
+        </aside>
+
+        <section class="image-panel">
+            <h3>Ảnh gốc</h3>
+            <div id="drop-zone" class="image-container" tabindex="0" aria-label="Khu vực tải ảnh lên. Nhấp hoặc kéo thả ảnh vào đây.">
+                <img id="original-image" src="" alt="Ảnh gốc của bạn" class="preview-image hidden">
+                <div id="upload-prompt">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <p>Tải ảnh của bạn lên</p>
+                </div>
+            </div>
+            <input type="file" id="file-input" accept="image/*" class="hidden">
+        </section>
+
+        <section class="image-panel">
+            <h3>Ảnh chính</h3>
+            <div id="result-container" class="image-container">
+                 <div id="loader" class="loader-overlay hidden">
+                    <div class="spinner"></div>
+                    <p id="loader-message"></p>
+                </div>
+                <img id="result-image" src="https://placehold.co/600/f0f8f8/FFF?text=" alt="Ảnh kết quả sau khi AI xử lý" class="result-image">
+            </div>
+             <a id="download-btn" href="#" class="download-btn disabled" download="magic-passport.png" role="button" aria-disabled="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Tải ảnh xuống
+            </a>
+        </section>
+
+    </main>
+
+    <script type="module" src="index.tsx"></script>
+</body>
+</html>
